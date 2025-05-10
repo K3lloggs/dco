@@ -1,83 +1,97 @@
 // src/pages/Login.jsx
 import { useState } from 'react';
-import { signInAnonymously } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 
-export default function Login({ onAuthenticated }) {
+export default function Login() {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // The correct password hardcoded for prototyping
-  const CORRECT_PASSWORD = 'D14m0nd!';
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
-    // First verify the password
-    if (password === CORRECT_PASSWORD) {
-      try {
-        // Use anonymous sign-in to track auth state in Firebase
-        await signInAnonymously(auth);
-        onAuthenticated();
-      } catch (error) {
-        console.error('Firebase auth error:', error);
-        setError('Authentication error. Please try again.');
-        setLoading(false);
-      }
-    } else {
-      setError('Invalid password');
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // User will be redirected by the router in App.jsx
+    } catch (error) {
+      setError('Invalid email or password');
+      console.error('Login error:', error);
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 sm:px-6">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-6 sm:mb-10">
-          <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">DCO</h2>
-          <p className="text-sm sm:text-base text-gray-600 mt-2">Enter password to access</p>
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="login-container">
+        {/* Contact info bar */}
+        <div className="text-center info-bar mb-8 hidden md:block">
+          <div className="flex justify-center items-center space-x-6">
+            <a href="tel:213-632-9061">213-632-9061</a>
+            <span>|</span>
+            <a href="mailto:HELLO@DAVID&CO.COM">HELLO@DAVID&CO.COM</a>
+            <span>|</span>
+            <a href="https://wa.me/12136329061">WHATSAPP</a>
+          </div>
         </div>
         
-        {error && (
-          <div className="mb-4 text-xs sm:text-sm text-red-600">
-            {error}
-          </div>
-        )}
+        <div className="text-center mb-10">
+          <h1 className="brand-logo mb-2">David & Co</h1>
+          <p className="login-subtitle">Sign in to manage your inventory</p>
+        </div>
         
-        <form onSubmit={handleLogin} className="bg-white p-5 sm:p-8 rounded-lg shadow-sm">
-          <div className="mb-5 sm:mb-6">
+        <form onSubmit={handleSubmit} className="login-form">
+          {error && (
+            <div className="error-message">
+              <p>{error}</p>
+            </div>
+          )}
+          
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
             <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 text-sm sm:text-base border-b border-gray-300 focus:border-gray-800 focus:outline-none"
-              autoFocus
+              className="form-input"
             />
           </div>
           
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gray-800 text-white py-2 text-sm sm:text-base hover:bg-gray-900 focus:outline-none transition-colors"
-          >
-            {loading ? 'Checking...' : 'Access Site'}
-          </button>
+          <div className="form-group">
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="password">Password</label>
+              <a href="#" className="forgot-link">Forgot?</a>
+            </div>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="form-input"
+            />
+          </div>
           
-          <div className="mt-5 sm:mt-6 text-center">
-            <button 
-              type="button"
-              onClick={() => window.location.href = 'mailto:contact@example.com?subject=Access Request'}
-              className="text-gray-600 hover:text-gray-800 text-xs sm:text-sm focus:outline-none"
+          <div className="form-submit">
+            <button
+              type="submit"
+              disabled={loading}
+              className="login-button"
             >
-              Request access
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
+        
+        <div className="login-footer">
+          <p>Need help? <a href="#" className="help-link">Contact support</a></p>
+        </div>
       </div>
     </div>
   );
