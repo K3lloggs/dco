@@ -5,7 +5,6 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import HomePage from './pages/HomePage';
 import Login from './pages/Login';
-import { NavbarProvider } from './context/NavbarContext';
 import './App.css';
 
 function App() {
@@ -39,41 +38,72 @@ function App() {
 
   return (
     <Router>
-      <NavbarProvider>
-        <Routes>
-          <Route 
-            path="/" 
-            element={
-              user ? (
-                <HomePage onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/login" 
-            element={
-              user ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Login />
-              )
-            } 
-          />
-          {/* Routes for each jewelry category */}
-          <Route path="/bracelet" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/brooch" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/earring" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/necklace" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/pendant" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/pin" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/ring" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/watches" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/objets-d-art" element={<HomePage onLogout={handleLogout} />} />
-          <Route path="/new" element={<HomePage onLogout={handleLogout} />} />
-        </Routes>
-      </NavbarProvider>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            user ? (
+              <HomePage onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            user ? (
+              <Navigate to="/" replace />
+            ) : (
+              <Login />
+            )
+          }
+        />
+        {/* Category routes */}
+        <Route 
+          path="/new" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/bracelet" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/brooch" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/earring" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/necklace" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/pendant" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/pin" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/ring" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/watches" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/objets-d-art" 
+          element={user ? <HomePage onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        
+        {/* Redirect any unknown route to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </Router>
   );
 }

@@ -1,300 +1,271 @@
 // src/pages/HomePage.jsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { useParams, useNavigate } from 'react-router-dom';
-import Navbar from '../context/NavbarContext';
+import { collection, getDocs } from 'firebase/firestore';
+import { useParams } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import '../App.css';
 
 export default function HomePage({ onLogout }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [categories] = useState(['All', 'Bracelet', 'Brooch', 'Earring', 'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch']);
+  const categories = [
+    'All', 'Bracelet', 'Brooch', 'Earring',
+    'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch'
+  ];
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productDetailOpen, setProductDetailOpen] = useState(false);
-  
-  const navigate = useNavigate();
-  
-  // Get category from URL params if provided
   const { category } = useParams();
-  
-  // Set active category based on URL parameter
+
+  // Sync URL → category
   useEffect(() => {
     if (category) {
-      // Capitalize first letter to match our categories array format
-      const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1);
-      if (categories.includes(formattedCategory)) {
-        setActiveCategory(formattedCategory);
-      }
+      const cap = category.charAt(0).toUpperCase() + category.slice(1);
+      if (categories.includes(cap)) setActiveCategory(cap);
     }
-  }, [category, categories]);
+  }, [category]);
 
-  // Fetch products based on active category
+  // Fetch products whenever activeCategory changes
   useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
+    setLoading(true);
+    (async () => {
       try {
-        let allProducts = [];
-        
-        // If "All" is selected, fetch from all collections
-        if (activeCategory === 'All') {
-          const collectionsToFetch = categories.filter(cat => cat !== 'All');
-          
-          for (const collectionName of collectionsToFetch) {
-            try {
-              const querySnapshot = await getDocs(collection(db, collectionName));
-              const productsFromCollection = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                category: collectionName,
-                ...doc.data()
-              }));
-              allProducts = [...allProducts, ...productsFromCollection];
-            } catch (err) {
-              console.error(`Error fetching from ${collectionName}:`, err);
-            }
-          }
-        } else {
-          // Fetch from the selected category only
-          const querySnapshot = await getDocs(collection(db, activeCategory));
-          allProducts = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            category: activeCategory,
-            ...doc.data()
-          }));
+        const toFetch =
+          activeCategory === 'All'
+            ? categories.filter(c => c !== 'All')
+            : [activeCategory];
+
+        const all = [];
+        for (const col of toFetch) {
+          const snap = await getDocs(collection(db, col));
+          all.push(
+            ...snap.docs.map(d => ({ id: d.id, category: col, ...d.data() }))
+          );
         }
-        
-        setProducts(allProducts);
-      } catch (error) {
-        console.error('Error fetching products:', error);
+        setProducts(all);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    };
+    })();
+  }, [activeCategory]);
 
-    fetchProducts();
-  }, [activeCategory, categories]);
-
-  // Function to handle category change
-  const handleCategoryChange = (category) => {
-    setActiveCategory(category);
-    // Stay on the same page, don't navigate
-    window.scrollTo(0, 0);
-  };
-
-  // Function to open product detail view
-  const openProductDetail = async (product) => {
-    setSelectedProduct(product);
+  // Open / close modal
+  const openDetail = prod => {
+    setSelectedProduct(prod);
     setProductDetailOpen(true);
-    // Add a class to the body to prevent scrolling
     document.body.classList.add('modal-open');
   };
-
-  // Function to close product detail view
-  const closeProductDetail = () => {
+  const closeDetail = () => {
     setProductDetailOpen(false);
     document.body.classList.remove('modal-open');
   };
 
+  // Format wholesale price as USD with .00
+  const fmt = num =>
+    num != null
+      ? num.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+      : '';
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navbar Component */}
+    <div className="min-h-screen bg-white flex flex-col overflow-x-hidden">
+      {/* Navbar component */}
       <Navbar />
-      
-      {/* Main Content */}
-      <main className="pt-20 md:pt-24">
+
+      {/* Main content with proper top spacing for fixed header */}
+      <main className="flex-1 pt-24">
         <div className="container mx-auto px-4">
-          {/* Collection Title */}
-          <div className="text-left">
-            <h1 className="collection-title">Collection</h1>
-          </div>
-          
-          {/* Category Filters */}
-          <div className="category-filters overflow-x-auto">
-            <div className="flex space-x-2 pb-2">
-              {categories.map(category => (
+          {/* Collection title - centered */}
+          <h1 className="collection-title text-center">Collection</h1>
+
+          {/* Category filters - centered */}
+          <div className="category-filters my-8">
+            <div className="flex flex-wrap justify-center gap-4">
+              {categories.map(cat => (
                 <button
-                  key={category}
-                  onClick={() => handleCategoryChange(category)}
-                  className={`category-btn ${activeCategory === category ? 'active' : ''}`}
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
                 >
-                  {category}
+                  {cat}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Product Grid */}
-          <div className="mb-16">
-            {loading ? (
-              <div className="product-grid">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                  <div key={i} className="product-skeleton">
-                    <div className="skeleton-image"></div>
-                    <div className="skeleton-text-short"></div>
-                    <div className="skeleton-text-long"></div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <>
-                {products.length === 0 ? (
-                  <div className="text-center py-16">
-                    <p className="empty-message">No products available in this category</p>
-                  </div>
-                ) : (
-                  <div className="product-grid">
-                    {products.map(product => (
-                      <div 
-                        key={product.id} 
-                        className="product-item"
-                        onClick={() => openProductDetail(product)}
-                      >
-                        {/* Product Image */}
-                        <div className="product-image-container">
-                          {product.images && product.images.length > 0 ? (
-                            <img 
-                              src={product.images[0]} 
-                              alt={product.cut || product.category}
-                              className="product-image"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = 'https://via.placeholder.com/300x300?text=No+Image';
-                              }}
-                            />
-                          ) : (
-                            <div className="product-no-image">
-                              <span>Image not available</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Product Info */}
-                        <div className="product-info">
-                          <h3 className="product-title">
-                            {product.title || product.cut || product.name || product.id}
-                          </h3>
-                          <p className="product-price">
-                            {product.wholesale ? `${Number(product.wholesale).toLocaleString()}` : ''}
-                          </p>
-                        </div>
+          {/* Products grid - exactly 3 per row */}
+          {(loading || products.length > 0) ? (
+            <div
+              className={`product-grid transition-opacity duration-300 ease-in-out
+                ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+            >
+              {loading
+                ? Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="product-skeleton">
+                      <div className="skeleton-image"></div>
+                      <div className="skeleton-text-short"></div>
+                      <div className="skeleton-text-long"></div>
+                    </div>
+                  ))
+                : products.map(product => (
+                    <div
+                      key={product.id}
+                      className="product-item"
+                      onClick={() => openDetail(product)}
+                    >
+                      <div className="product-image-container">
+                        {product.images?.[0] ? (
+                          <img
+                            src={product.images[0]}
+                            alt={product.title}
+                            className="product-image"
+                            onError={e => {
+                              e.currentTarget.src =
+                                'https://via.placeholder.com/300';
+                            }}
+                          />
+                        ) : (
+                          <div className="product-no-image">
+                            Image not available
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                      <div className="product-info text-center">
+                        <h3 className="product-title">
+                          {product.title}
+                        </h3>
+                        <p className="product-price">
+                          {fmt(product.wholesale)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+            </div>
+          ) : (
+            <p className="empty-message text-center">
+              No products in this category.
+            </p>
+          )}
         </div>
       </main>
 
-      {/* Product Detail Modal */}
+      {/* Product detail modal */}
       {productDetailOpen && selectedProduct && (
-        <div className="product-detail-overlay" onClick={closeProductDetail}>
-          <div className="product-detail-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close-modal" onClick={closeProductDetail}>
-              <svg 
-                width="24" 
-                height="24" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path 
-                  d="M6 18L18 6M6 6L18 18" 
-                  stroke="currentColor" 
-                  strokeWidth="1" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            
+        <div className="product-detail-overlay" onClick={closeDetail}>
+          <div className="product-detail-modal" onClick={e => e.stopPropagation()}>
+            <button className="close-modal" onClick={closeDetail}>✕</button>
             <div className="product-detail-content">
+
+              {/* Left: Image with navigation controls */}
               <div className="product-detail-image">
-                {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                  <img 
-                    src={selectedProduct.images[0]} 
-                    alt={selectedProduct.cut || selectedProduct.name || selectedProduct.id}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'https://via.placeholder.com/500x500?text=No+Image';
-                    }}
+                <div className="product-detail-image-container">
+                  {selectedProduct.images?.length > 1 && (
+                    <button 
+                      className="image-nav image-nav-prev" 
+                      onClick={() => {
+                        const imgs = [...selectedProduct.images];
+                        const lastImg = imgs.pop();
+                        imgs.unshift(lastImg);
+                        setSelectedProduct({ ...selectedProduct, images: imgs });
+                      }}
+                    >
+                      ‹
+                    </button>
+                  )}
+                  
+                  <img
+                    src={selectedProduct.images?.[0]}
+                    alt={selectedProduct.title}
+                    className="main-product-image"
                   />
-                ) : (
-                  <div className="product-no-image">
-                    <span>Image not available</span>
-                  </div>
-                )}
+                  
+                  {selectedProduct.images?.length > 1 && (
+                    <button 
+                      className="image-nav image-nav-next"
+                      onClick={() => {
+                        const imgs = [...selectedProduct.images];
+                        const firstImg = imgs.shift();
+                        imgs.push(firstImg);
+                        setSelectedProduct({ ...selectedProduct, images: imgs });
+                      }}
+                    >
+                      ›
+                    </button>
+                  )}
+                </div>
                 
-                {/* Additional images carousel - if there are multiple images */}
-                {selectedProduct.images && selectedProduct.images.length > 1 && (
-                  <div className="image-thumbnails">
-                    {selectedProduct.images.map((image, index) => (
-                      <img 
-                        key={index}
-                        src={image}
-                        alt={`${selectedProduct.cut || selectedProduct.name || selectedProduct.id} view ${index + 1}`}
-                        className="thumbnail"
+                {/* Image pagination dots */}
+                {selectedProduct.images?.length > 1 && (
+                  <div className="pagination-dots">
+                    {selectedProduct.images.map((img, i) => (
+                      <span 
+                        key={i} 
+                        className={`pagination-dot ${i === 0 ? 'active' : ''}`}
                         onClick={() => {
-                          // Clone the product and change the first image to this one
-                          const updatedProduct = {...selectedProduct};
-                          // Swap images
-                          [updatedProduct.images[0], updatedProduct.images[index]] = 
-                            [updatedProduct.images[index], updatedProduct.images[0]];
-                          setSelectedProduct(updatedProduct);
-                        }}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'https://via.placeholder.com/100x100?text=No+Image';
+                          const imgs = [...selectedProduct.images];
+                          const temp = imgs[0];
+                          imgs[0] = imgs[i];
+                          imgs[i] = temp;
+                          setSelectedProduct({ ...selectedProduct, images: imgs });
                         }}
                       />
                     ))}
                   </div>
                 )}
               </div>
-              
+
+              {/* Right: Details and Specifications */}
               <div className="product-detail-info">
-                <div className="product-detail-header">
-                  <h2 className="product-detail-title">
-                    {selectedProduct.title || selectedProduct.cut || selectedProduct.name || selectedProduct.id}
-                  </h2>
-                  <p className="product-detail-category">{selectedProduct.category}</p>
-                  {selectedProduct.wholesale && (
-                    <p className="product-detail-price">${Number(selectedProduct.wholesale).toLocaleString()}</p>
-                  )}
-                </div>
+                <h1 className="product-detail-title">{selectedProduct.title}</h1>
+                <p className="product-detail-category">{selectedProduct.category}</p>
+                <p className="product-detail-price">{fmt(selectedProduct.wholesale)}</p>
                 
                 <div className="product-detail-description">
-                  <p>{selectedProduct.description || 'No description available.'}</p>
+                  {selectedProduct.description || 'No description available.'}
                 </div>
                 
-                {/* Product details/specifications */}
-                <div className="product-specifications">
-                  <h3>Specifications</h3>
-                  <ul>
+                <div className="specifications-section">
+                  <h3 className="specifications-title">Specifications</h3>
+                  <div className="specifications-table">
                     {selectedProduct.metal && (
-                      <li><span>Metal:</span> {selectedProduct.metal}</li>
+                      <div className="spec-row">
+                        <div className="spec-label">Metal:</div>
+                        <div className="spec-value">{selectedProduct.metal}</div>
+                      </div>
                     )}
                     {selectedProduct.stone && (
-                      <li><span>Stone:</span> {selectedProduct.stone}</li>
+                      <div className="spec-row">
+                        <div className="spec-label">Stone:</div>
+                        <div className="spec-value">{selectedProduct.stone}</div>
+                      </div>
                     )}
                     {selectedProduct.total_weight && (
-                      <li><span>Weight:</span> {selectedProduct.total_weight}g</li>
+                      <div className="spec-row">
+                        <div className="spec-label">Weight:</div>
+                        <div className="spec-value">{selectedProduct.total_weight}g</div>
+                      </div>
                     )}
                     {selectedProduct.sku && (
-                      <li><span>SKU:</span> {selectedProduct.sku}</li>
+                      <div className="spec-row">
+                        <div className="spec-label">SKU:</div>
+                        <div className="spec-value">{selectedProduct.sku}</div>
+                      </div>
                     )}
-                  </ul>
+                  </div>
                 </div>
                 
-                {/* Contact button */}
-                <div className="product-detail-actions">
-                  <a 
-                    href={`mailto:HELLO@DAVID&CO.COM?subject=Inquiry about ${selectedProduct.cut || selectedProduct.name || selectedProduct.id}&body=I'm interested in the ${selectedProduct.category}: ${selectedProduct.cut || selectedProduct.name || selectedProduct.id}.`} 
-                    className="contact-button"
-                  >
-                    Inquire About This Piece
-                  </a>
+                <div className="product-action-buttons">
+                  <button className="contact-button" onClick={() => {
+                    window.location.href = `mailto:HELLO@DAVID&CO.COM?subject=Inquiry about ${selectedProduct.title}`;
+                  }}>
+                    Contact Us
+                  </button>
+                  <button className="continue-shopping-button" onClick={closeDetail}>
+                    Continue Shopping
+                  </button>
                 </div>
               </div>
             </div>
@@ -302,19 +273,10 @@ export default function HomePage({ onLogout }) {
         </div>
       )}
 
-      {/* Minimal Footer */}
+      {/* Footer */}
       <footer>
-        <div className="container mx-auto px-4">
-          <div className="footer-content">
-            <div className="copyright">
-              © {new Date().getFullYear()} David & Co
-            </div>
-            <div className="footer-links">
-              <a href="#">Terms</a>
-              <a href="#">Privacy</a>
-              <a href="#">Contact</a>
-            </div>
-          </div>
+        <div className="container text-center text-gray-500 text-sm py-4">
+          © {new Date().getFullYear()} David &amp; Co
         </div>
       </footer>
     </div>
