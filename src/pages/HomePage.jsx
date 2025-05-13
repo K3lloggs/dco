@@ -1,39 +1,46 @@
-// src/pages/HomePage.jsx
+// src/pages/HomePage.jsx - Fixed rendering loop
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import '../App.css';
+
+// Define categories outside component to prevent recreation on each render
+const CATEGORIES = [
+  'All', 'Bracelet', 'Brooch', 'Earring',
+  'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch'
+];
 
 export default function HomePage({ onLogout }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
-  const categories = [
-    'All', 'Bracelet', 'Brooch', 'Earring',
-    'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch'
-  ];
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productDetailOpen, setProductDetailOpen] = useState(false);
   const { category } = useParams();
+  const navigate = useNavigate();
 
-  // Sync URL → category
+  // Set initial category from URL parameter - only once on mount or when URL changes
   useEffect(() => {
     if (category) {
       const cap = category.charAt(0).toUpperCase() + category.slice(1);
-      if (categories.includes(cap)) setActiveCategory(cap);
+      if (CATEGORIES.includes(cap)) {
+        setActiveCategory(cap);
+      }
+    } else {
+      setActiveCategory('All');
     }
-  }, [category]);
+  }, [category]); // Only depend on URL parameter
 
-  // Fetch products whenever activeCategory changes
+  // Fetch products when activeCategory changes
   useEffect(() => {
-    setLoading(true);
-    (async () => {
+    async function fetchProducts() {
+      setLoading(true);
       try {
         const toFetch =
           activeCategory === 'All'
-            ? categories.filter(c => c !== 'All')
+            ? CATEGORIES.filter(c => c !== 'All')
             : [activeCategory];
 
         const all = [];
@@ -43,51 +50,88 @@ export default function HomePage({ onLogout }) {
             ...snap.docs.map(d => ({ id: d.id, category: col, ...d.data() }))
           );
         }
+
         setProducts(all);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching products:', err);
       } finally {
         setLoading(false);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    })();
-  }, [activeCategory]);
+    }
+
+    fetchProducts();
+  }, [activeCategory]); // Only depend on activeCategory
 
   // Open / close modal
-  const openDetail = prod => {
+  const openDetail = (prod) => {
     setSelectedProduct(prod);
     setProductDetailOpen(true);
     document.body.classList.add('modal-open');
   };
+
   const closeDetail = () => {
     setProductDetailOpen(false);
     document.body.classList.remove('modal-open');
   };
 
-  // Format wholesale price as USD with .00
-  const fmt = num =>
-    num != null
-      ? num.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-      : '';
+  // Navigate product images
+  const navigateImages = (direction) => {
+    if (!selectedProduct?.images || selectedProduct.images.length <= 1) return;
+
+    const imgs = [...selectedProduct.images];
+    if (direction === 'next') {
+      const firstImg = imgs.shift();
+      imgs.push(firstImg);
+    } else {
+      const lastImg = imgs.pop();
+      imgs.unshift(lastImg);
+    }
+
+    setSelectedProduct({ ...selectedProduct, images: imgs });
+  };
+
+  // Format wholesale price as USD with no cents
+  const formatPrice = (num) => {
+    if (num == null) return '';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(num);
+  };
+
+  // Handle category change - use React Router navigation instead of direct DOM manipulation
+  const handleCategoryChange = (cat) => {
+    if (cat === activeCategory) return;
+
+    // Use React Router's navigate to handle URL changes
+    if (cat === 'All') {
+      navigate('/');
+    } else {
+      navigate(`/${cat.toLowerCase()}`);
+    }
+    // Note: setActiveCategory is not needed here as it will be handled by the useEffect that watches the URL
+  };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col overflow-x-hidden">
+    <div className="home-container">
       {/* Navbar component */}
       <Navbar />
 
-      {/* Main content with proper top spacing for fixed header */}
-      <main className="flex-1 pt-24">
-        <div className="container mx-auto px-4">
-          {/* Collection title - centered */}
-          <h1 className="collection-title text-center">Collection</h1>
+      {/* Main content */}
+      <main className="main-content">
+        <div className="container">
+          {/* Collection title */}
+          <h1 className="collection-title">Collection</h1>
 
-          {/* Category filters - centered */}
-          <div className="category-filters my-8">
-            <div className="flex flex-wrap justify-center gap-4">
-              {categories.map(cat => (
+          {/* Category filters */}
+          <div className="category-filters">
+            <div className="category-buttons">
+              {CATEGORIES.map(cat => (
                 <button
                   key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => handleCategoryChange(cat)}
                   className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
                 >
                   {cat}
@@ -96,175 +140,186 @@ export default function HomePage({ onLogout }) {
             </div>
           </div>
 
-          {/* Products grid - exactly 3 per row */}
-          {(loading || products.length > 0) ? (
-            <div
-              className={`product-grid transition-opacity duration-300 ease-in-out
-                ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
-            >
-              {loading
-                ? Array.from({ length: 9 }).map((_, i) => (
-                    <div key={i} className="product-skeleton">
-                      <div className="skeleton-image"></div>
-                      <div className="skeleton-text-short"></div>
-                      <div className="skeleton-text-long"></div>
+          {/* Products grid */}
+          <div className="products-section">
+            {loading ? (
+              <div className="product-grid">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="product-skeleton">
+                    <div className="skeleton-image"></div>
+                    <div className="skeleton-text-short"></div>
+                    <div className="skeleton-text-long"></div>
+                  </div>
+                ))}
+              </div>
+            ) : products.length > 0 ? (
+              <div className="product-grid">
+                {products.map(product => (
+                  <div
+                    key={product.id}
+                    className="product-item"
+                    onClick={() => openDetail(product)}
+                  >
+                    <div className="product-image-container">
+                      {product.images?.[0] ? (
+                        <img
+                          src={product.images[0]}
+                          alt={product.title || "Product image"}
+                          className="product-image"
+                          loading="lazy"
+                          onError={e => {
+                            e.currentTarget.src = 'https://via.placeholder.com/400x400?text=Product';
+                          }}
+                        />
+                      ) : (
+                        <div className="product-no-image">
+                          Image not available
+                        </div>
+                      )}
                     </div>
-                  ))
-                : products.map(product => (
-                    <div
-                      key={product.id}
-                      className="product-item"
-                      onClick={() => openDetail(product)}
-                    >
-                      <div className="product-image-container">
-                        {product.images?.[0] ? (
-                          <img
-                            src={product.images[0]}
-                            alt={product.title}
-                            className="product-image"
-                            onError={e => {
-                              e.currentTarget.src =
-                                'https://via.placeholder.com/300';
-                            }}
-                          />
-                        ) : (
-                          <div className="product-no-image">
-                            Image not available
-                          </div>
-                        )}
-                      </div>
-                      <div className="product-info text-center">
-                        <h3 className="product-title">
-                          {product.title}
-                        </h3>
-                        <p className="product-price">
-                          {fmt(product.wholesale)}
-                        </p>
-                      </div>
+                    <div className="product-info">
+                      <h3 className="product-title">
+                        {product.title || product.cut || product.id}
+                      </h3>
+                      <p className="product-price">
+                        {formatPrice(product.wholesale)}
+                      </p>
                     </div>
-                  ))}
-            </div>
-          ) : (
-            <p className="empty-message text-center">
-              No products in this category.
-            </p>
-          )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-message">
+                No products in this category.
+              </p>
+            )}
+          </div>
         </div>
       </main>
 
-      {/* Product detail modal */}
+      {/* Product detail modal - Apple-esque design */}
       {productDetailOpen && selectedProduct && (
         <div className="product-detail-overlay" onClick={closeDetail}>
           <div className="product-detail-modal" onClick={e => e.stopPropagation()}>
-            <button className="close-modal" onClick={closeDetail}>✕</button>
-            <div className="product-detail-content">
+            <button className="close-modal" onClick={closeDetail}>
+              <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1L16 16M1 16L16 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
 
+            <div className="product-detail-content">
               {/* Left: Image with navigation controls */}
               <div className="product-detail-image">
                 <div className="product-detail-image-container">
                   {selectedProduct.images?.length > 1 && (
-                    <button 
-                      className="image-nav image-nav-prev" 
-                      onClick={() => {
-                        const imgs = [...selectedProduct.images];
-                        const lastImg = imgs.pop();
-                        imgs.unshift(lastImg);
-                        setSelectedProduct({ ...selectedProduct, images: imgs });
+                    <button
+                      className="image-nav image-nav-prev"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigateImages('prev');
                       }}
+                      aria-label="Previous image"
                     >
-                      ‹
+                      <svg width="12" height="20" viewBox="0 0 12 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 2L2 10L10 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </button>
                   )}
-                  
+
                   <img
-                    src={selectedProduct.images?.[0]}
-                    alt={selectedProduct.title}
+                    src={selectedProduct.images?.[0] || 'https://via.placeholder.com/600x600?text=No+Image'}
+                    alt={selectedProduct.title || "Product detail"}
                     className="main-product-image"
                   />
-                  
+
                   {selectedProduct.images?.length > 1 && (
-                    <button 
+                    <button
                       className="image-nav image-nav-next"
-                      onClick={() => {
-                        const imgs = [...selectedProduct.images];
-                        const firstImg = imgs.shift();
-                        imgs.push(firstImg);
-                        setSelectedProduct({ ...selectedProduct, images: imgs });
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigateImages('next');
                       }}
+                      aria-label="Next image"
                     >
-                      ›
+                      <svg width="12" height="20" viewBox="0 0 12 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 2L10 10L2 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </button>
                   )}
+
+                  {/* Image pagination dots */}
+                  {selectedProduct.images?.length > 1 && (
+                    <div className="pagination-dots">
+                      {selectedProduct.images.map((_, i) => (
+                        <button
+                          key={i}
+                          className={`pagination-dot ${i === 0 ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const imgs = [...selectedProduct.images];
+                            const selected = imgs.splice(i, 1)[0];
+                            imgs.unshift(selected);
+                            setSelectedProduct({ ...selectedProduct, images: imgs });
+                          }}
+                          aria-label={`View image ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                
-                {/* Image pagination dots */}
-                {selectedProduct.images?.length > 1 && (
-                  <div className="pagination-dots">
-                    {selectedProduct.images.map((img, i) => (
-                      <span 
-                        key={i} 
-                        className={`pagination-dot ${i === 0 ? 'active' : ''}`}
-                        onClick={() => {
-                          const imgs = [...selectedProduct.images];
-                          const temp = imgs[0];
-                          imgs[0] = imgs[i];
-                          imgs[i] = temp;
-                          setSelectedProduct({ ...selectedProduct, images: imgs });
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Right: Details and Specifications */}
               <div className="product-detail-info">
-                <h1 className="product-detail-title">{selectedProduct.title}</h1>
+                <h1 className="product-detail-title">{selectedProduct.title || selectedProduct.cut || selectedProduct.id}</h1>
                 <p className="product-detail-category">{selectedProduct.category}</p>
-                <p className="product-detail-price">{fmt(selectedProduct.wholesale)}</p>
-                
+                <p className="product-detail-price">{formatPrice(selectedProduct.wholesale)}</p>
+
                 <div className="product-detail-description">
-                  {selectedProduct.description || 'No description available.'}
+                  {selectedProduct.description || 'This exquisite piece exemplifies fine craftsmanship and timeless design. Made with meticulous attention to detail, it represents the pinnacle of luxury and elegance.'}
                 </div>
-                
+
                 <div className="specifications-section">
                   <h3 className="specifications-title">Specifications</h3>
                   <div className="specifications-table">
                     {selectedProduct.metal && (
                       <div className="spec-row">
-                        <div className="spec-label">Metal:</div>
+                        <div className="spec-label">Metal</div>
                         <div className="spec-value">{selectedProduct.metal}</div>
                       </div>
                     )}
                     {selectedProduct.stone && (
                       <div className="spec-row">
-                        <div className="spec-label">Stone:</div>
+                        <div className="spec-label">Stone</div>
                         <div className="spec-value">{selectedProduct.stone}</div>
                       </div>
                     )}
                     {selectedProduct.total_weight && (
                       <div className="spec-row">
-                        <div className="spec-label">Weight:</div>
+                        <div className="spec-label">Weight</div>
                         <div className="spec-value">{selectedProduct.total_weight}g</div>
                       </div>
                     )}
                     {selectedProduct.sku && (
                       <div className="spec-row">
-                        <div className="spec-label">SKU:</div>
+                        <div className="spec-label">SKU</div>
                         <div className="spec-value">{selectedProduct.sku}</div>
                       </div>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="product-action-buttons">
-                  <button className="contact-button" onClick={() => {
-                    window.location.href = `mailto:HELLO@DAVID&CO.COM?subject=Inquiry about ${selectedProduct.title}`;
-                  }}>
-                    Contact Us
+                  <button
+                    className="contact-button"
+                    onClick={() => {
+                      window.location.href = `mailto:HELLO@DAVID&CO.COM?subject=Inquiry about ${selectedProduct.title || selectedProduct.id}`;
+                    }}
+                  >
+                    Contact About This Piece
                   </button>
                   <button className="continue-shopping-button" onClick={closeDetail}>
-                    Continue Shopping
+                    Continue Browsing
                   </button>
                 </div>
               </div>
@@ -274,9 +329,13 @@ export default function HomePage({ onLogout }) {
       )}
 
       {/* Footer */}
-      <footer>
-        <div className="container text-center text-gray-500 text-sm py-4">
-          © {new Date().getFullYear()} David &amp; Co
+      <footer className="main-footer">
+        <div className="container">
+          <p>© {new Date().getFullYear()} David &amp; Co</p>
+
+          <button onClick={onLogout} className="logout-button">
+            Sign Out
+          </button>
         </div>
       </footer>
     </div>

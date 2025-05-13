@@ -1,97 +1,89 @@
-// src/pages/Login.jsx
+// src/pages/Login.jsx - Clean Modern Design
 import { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInAnonymously } from 'firebase/auth';
 import { auth } from '../firebase';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleSubmit = async (e) => {
+  // Redirect if already logged in
+  if (user) {
+    navigate('/', { replace: true });
+    return null;
+  }
+
+  // The correct password for authentication
+  const CORRECT_PASSWORD = 'D14m0nd!';
+
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // User will be redirected by the router in App.jsx
+      // Check password
+      if (password === CORRECT_PASSWORD) {
+        // Use anonymous sign-in
+        await signInAnonymously(auth);
+        navigate('/', { replace: true });
+      } else {
+        setError('Incorrect password');
+        setLoading(false);
+      }
     } catch (error) {
-      setError('Invalid email or password');
-      console.error('Login error:', error);
-    } finally {
+      console.error('Authentication error:', error);
+      setError('An error occurred. Please try again.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="login-container">
-        {/* Contact info bar */}
-        <div className="text-center info-bar mb-8 hidden md:block">
-          <div className="flex justify-center items-center space-x-6">
-            <a href="tel:213-632-9061">213-632-9061</a>
-            <span>|</span>
-            <a href="mailto:HELLO@DAVID&CO.COM">HELLO@DAVID&CO.COM</a>
-            <span>|</span>
-            <a href="https://wa.me/12136329061">WHATSAPP</a>
-          </div>
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h1>David & Co</h1>
+          <p>Private Collection</p>
         </div>
-        
-        <div className="text-center mb-10">
-          <h1 className="brand-logo mb-2">David & Co</h1>
-          <p className="login-subtitle">Sign in to manage your inventory</p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="login-form">
-          {error && (
-            <div className="error-message">
-              <p>{error}</p>
-            </div>
-          )}
-          
+
+        {error && <div className="login-error">{error}</div>}
+
+        <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
             <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="form-input"
-            />
-          </div>
-          
-          <div className="form-group">
-            <div className="flex justify-between items-center mb-2">
-              <label htmlFor="password">Password</label>
-              <a href="#" className="forgot-link">Forgot?</a>
-            </div>
-            <input
-              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
               required
-              className="form-input"
+              className="password-input"
+              autoFocus
             />
           </div>
-          
-          <div className="form-submit">
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="login-button"
+          >
+            {loading ? 'Signing In...' : 'Enter Collection'}
+          </button>
+
+          <div className="login-footer">
             <button
-              type="submit"
-              disabled={loading}
-              className="login-button"
+              type="button"
+              onClick={() => window.location.href = 'mailto:HELLO@DAVID&CO.COM?subject=Access Request'}
+              className="request-access"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              Request Access
             </button>
           </div>
         </form>
-        
-        <div className="login-footer">
-          <p>Need help? <a href="#" className="help-link">Contact support</a></p>
-        </div>
       </div>
     </div>
   );
