@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 // Display names (plural) for UI
@@ -14,6 +15,7 @@ const CATEGORY_MAPPING = {
   'Earrings': 'Earring',
   'Necklaces': 'Necklace',
   'Pendants': 'Pendant',
+  'Pins': 'Pin',
   'Rings': 'Ring',
   'Watches': 'Watch',
   'Art': 'Art'
