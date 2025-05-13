@@ -34,7 +34,8 @@ const Navbar = () => {
   // Your contact information - Replace with your actual info
   const contactInfo = {
     phone: "+1 (603) 933-1290",
-    email: "cclose@shrevecrumpandlow.com"
+    email: "cclose@shrevecrumpandlow.com",
+    store: "+1 (617) 267-9100",
   };
 
   // Determine active category from URL path
@@ -66,6 +67,10 @@ const Navbar = () => {
             <span className="contact-item">{contactInfo.phone}</span>
             <span className="contact-divider">•</span>
             <span className="contact-item">{contactInfo.email}</span>
+            <span className="contact-item">{contactInfo.store}</span>
+            <span className="contact-divider">•</span>
+
+            
           </div>
         </div>
       </div>

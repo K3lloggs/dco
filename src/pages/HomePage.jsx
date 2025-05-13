@@ -1,11 +1,4 @@
-// src/pages/HomePage.jsx
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef
-} from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -39,17 +32,7 @@ const PATH_TO_COLLECTION = {
   'art': 'Art'
 };
 
-// Fisher–Yates shuffle
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-
 export default function HomePage({ onLogout }) {
-  const allProductsCache = useRef(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCollection, setActiveCollection] = useState('All');
@@ -62,8 +45,9 @@ export default function HomePage({ onLogout }) {
   // Map URL category parameter to Firebase collection name
   useEffect(() => {
     if (category) {
-      const lower = category.toLowerCase();
-      setActiveCollection(PATH_TO_COLLECTION[lower] || 'All');
+      const categoryLower = category.toLowerCase();
+      const collectionName = PATH_TO_COLLECTION[categoryLower] || 'All';
+      setActiveCollection(collectionName);
     } else {
       setActiveCollection('All');
     }
@@ -72,35 +56,21 @@ export default function HomePage({ onLogout }) {
   // Fetch products whenever activeCollection changes
   const fetchProducts = useCallback(async () => {
     setLoading(true);
-
-    // If "All" already cached, reuse it
-    if (activeCollection === 'All' && allProductsCache.current) {
-      setProducts(allProductsCache.current);
-      setLoading(false);
-      return;
-    }
-
     try {
       const toFetch =
         activeCollection === 'All'
           ? COLLECTION_NAMES.filter(c => c !== 'All')
           : [activeCollection];
 
-      let all = [];
+      const all = [];
       const promises = toFetch.map(col =>
         getDocs(collection(db, col)).then(snap =>
           snap.docs.map(d => ({ id: d.id, category: col, ...d.data() }))
         )
       );
+
       const results = await Promise.all(promises);
       results.forEach(items => all.push(...items));
-
-      // Shuffle & cache only once on initial "All"
-      if (activeCollection === 'All') {
-        all = shuffleArray(all);
-        allProductsCache.current = all;
-      }
-
       setProducts(all);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -116,7 +86,7 @@ export default function HomePage({ onLogout }) {
   // Modal handlers
   const openDetail = useCallback(prod => {
     setSelectedProduct(prod);
-    setCurrentImageIndex(0);
+    setCurrentImageIndex(0); // Reset image index when opening modal
     setProductDetailOpen(true);
     document.body.classList.add('modal-open');
   }, []);
@@ -126,28 +96,31 @@ export default function HomePage({ onLogout }) {
     document.body.classList.remove('modal-open');
     setTimeout(() => {
       setSelectedProduct(null);
-      setCurrentImageIndex(0);
+      setCurrentImageIndex(0); // Reset image index when closing modal
     }, 300);
   }, []);
 
-  // Image carousel navigation
+  // Image carousel - improved navigation
   const navigateImages = useCallback(
     direction => {
       if (!selectedProduct?.images || selectedProduct.images.length <= 1) return;
-      setCurrentImageIndex(prev => {
-        const total = selectedProduct.images.length;
-        return direction === 'next'
-          ? (prev + 1) % total
-          : (prev - 1 + total) % total;
+
+      setCurrentImageIndex(prevIndex => {
+        const totalImages = selectedProduct.images.length;
+        if (direction === 'next') {
+          return (prevIndex + 1) % totalImages;
+        } else {
+          return (prevIndex - 1 + totalImages) % totalImages;
+        }
       });
     },
     [selectedProduct]
   );
 
   const selectImage = useCallback(
-    idx => {
+    index => {
       if (!selectedProduct?.images) return;
-      setCurrentImageIndex(idx);
+      setCurrentImageIndex(index);
     },
     [selectedProduct]
   );
@@ -158,15 +131,15 @@ export default function HomePage({ onLogout }) {
       num == null
         ? ''
         : new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-          }).format(num),
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(num),
     []
   );
 
-  // ESC to close modal
+  // ESC key → close modal
   useEffect(() => {
     const onKey = e => {
       if (e.key === 'Escape' && productDetailOpen) closeDetail();
@@ -175,25 +148,41 @@ export default function HomePage({ onLogout }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [productDetailOpen, closeDetail]);
 
-  // Arrow keys for image nav
+  // Arrow key navigation for images
   useEffect(() => {
-    const onArrow = e => {
-      if (
-        !productDetailOpen ||
-        !selectedProduct?.images ||
-        selectedProduct.images.length <= 1
-      )
-        return;
-      if (e.key === 'ArrowLeft') navigateImages('prev');
-      else if (e.key === 'ArrowRight') navigateImages('next');
+    const handleKeyDown = e => {
+      if (!productDetailOpen || !selectedProduct?.images || selectedProduct.images.length <= 1) return;
+
+      if (e.key === 'ArrowLeft') {
+        navigateImages('prev');
+      } else if (e.key === 'ArrowRight') {
+        navigateImages('next');
+      }
     };
-    window.addEventListener('keydown', onArrow);
-    return () => window.removeEventListener('keydown', onArrow);
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [productDetailOpen, selectedProduct, navigateImages]);
 
-  // Display-friendly category names
-  const getCategoryDisplay = cat => {
-    switch (cat) {
+  // Loading skeleton
+  const loadingSkeletons = useMemo(
+    () => (
+      <div className="product-grid">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="product-skeleton">
+            <div className="skeleton-image" />
+            <div className="skeleton-text-short" />
+            <div className="skeleton-text-long" />
+          </div>
+        ))}
+      </div>
+    ),
+    []
+  );
+
+  // Get a display-friendly category name (pluralized)
+  const getCategoryDisplay = (category) => {
+    switch (category) {
       case 'Bracelet': return 'Bracelets';
       case 'Brooch': return 'Brooches';
       case 'Earring': return 'Earrings';
@@ -203,70 +192,61 @@ export default function HomePage({ onLogout }) {
       case 'Watch': return 'Watches';
       case 'Pin': return 'Pins';
       case 'Art': return 'Art';
-      default: return cat;
+      default: return category;
     }
   };
-
-  // Loading skeleton
-  const loadingSkeletons = (
-    <div className="product-grid">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="product-skeleton">
-          <div className="skeleton-image" />
-          <div className="skeleton-text-short" />
-          <div className="skeleton-text-long" />
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <div className="home-container">
       <Navbar />
       <main className="main-content">
         <div className="container">
-          {loading ? (
-            loadingSkeletons
-          ) : products.length > 0 ? (
-            <div className="product-grid">
-              {products.map(prod => (
-                <div
-                  key={prod.id}
-                  className="product-item"
-                  onClick={() => openDetail(prod)}
-                >
-                  <div className="product-image-container">
-                    {prod.images?.[0] ? (
-                      <img
-                        src={prod.images[0]}
-                        alt={prod.title || 'Product'}
-                        className="product-image"
-                        loading="lazy"
-                        onError={e =>
+          <div className="products-section">
+            {loading ? (
+              loadingSkeletons
+            ) : products.length > 0 ? (
+              <div className="product-grid">
+                {products.map(prod => (
+                  <div
+                    key={prod.id}
+                    className="product-item"
+                    onClick={() => openDetail(prod)}
+                  >
+                    <div className="product-image-container">
+                      {prod.images?.[0] ? (
+                        <img
+                          src={prod.images[0]}
+                          alt={prod.title || 'Product'}
+                          className="product-image"
+                          loading="lazy"
+                          onError={e =>
                           (e.currentTarget.src =
                             'https://via.placeholder.com/400x400?text=Product')
-                        }
-                      />
-                    ) : (
-                      <div className="product-no-image">
-                        Image not available
-                      </div>
-                    )}
+                          }
+                        />
+                      ) : (
+                        <div className="product-no-image">
+                          Image not available
+                        </div>
+                      )}
+                    </div>
+                    <div className="product-info">
+                      <h3 className="product-title">
+                        {prod.title || prod.cut || prod.id}
+                      </h3>
+                      <p className="product-price">
+                        {formatPrice(prod.wholesale)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="product-info">
-                    <h3 className="product-title">
-                      {prod.title || prod.cut || prod.id}
-                    </h3>
-                    <p className="product-price">
-                      {formatPrice(prod.wholesale)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="empty-message">No products in this category.</p>
-          )}
+                ))}
+              </div>
+            ) : (
+              <p className="empty-message">
+                No products in this category.
+              </p>
+            )}
+          </div>
         </div>
       </main>
 
@@ -279,7 +259,10 @@ export default function HomePage({ onLogout }) {
           }}
         >
           <div className="product-detail-modal">
-            <button className="close-modal" onClick={closeDetail}>×</button>
+            <button className="close-modal" onClick={closeDetail}>
+              ×
+            </button>
+
             {selectedProduct && (
               <div className="product-detail-content">
                 <div className="product-detail-image">
@@ -292,11 +275,12 @@ export default function HomePage({ onLogout }) {
                             alt={selectedProduct.title || 'Product'}
                             className="carousel-image"
                             onError={e =>
-                              (e.currentTarget.src =
-                                'https://via.placeholder.com/500x500?text=No+Image')
+                            (e.currentTarget.src =
+                              'https://via.placeholder.com/500x500?text=No+Image')
                             }
                           />
                         </div>
+
                         {selectedProduct.images.length > 1 && (
                           <>
                             <button
@@ -307,7 +291,7 @@ export default function HomePage({ onLogout }) {
                               }}
                               aria-label="Previous image"
                             >
-                              ‹
+                              <span className="nav-arrow">‹</span>
                             </button>
                             <button
                               className="image-nav image-nav-next"
@@ -317,7 +301,7 @@ export default function HomePage({ onLogout }) {
                               }}
                               aria-label="Next image"
                             >
-                              ›
+                              <span className="nav-arrow">›</span>
                             </button>
                           </>
                         )}
@@ -326,22 +310,24 @@ export default function HomePage({ onLogout }) {
                       <div className="product-no-image">Image not available</div>
                     )}
                   </div>
+
                   {selectedProduct.images && selectedProduct.images.length > 1 && (
                     <div className="pagination-dots">
-                      {selectedProduct.images.map((_, idx) => (
+                      {selectedProduct.images.map((_, index) => (
                         <button
-                          key={idx}
-                          className={`pagination-dot ${idx === currentImageIndex ? 'active' : ''}`}
+                          key={index}
+                          className={`pagination-dot ${index === currentImageIndex ? 'active' : ''}`}
                           onClick={e => {
                             e.stopPropagation();
-                            selectImage(idx);
+                            selectImage(index);
                           }}
-                          aria-label={`View image ${idx + 1}`}
+                          aria-label={`View image ${index + 1}`}
                         />
                       ))}
                     </div>
                   )}
                 </div>
+
                 <div className="product-detail-info">
                   <p className="product-detail-category">
                     {getCategoryDisplay(selectedProduct.category)}
@@ -352,14 +338,17 @@ export default function HomePage({ onLogout }) {
                   <p className="product-detail-price">
                     {formatPrice(selectedProduct.wholesale)}
                   </p>
+
                   {selectedProduct.description && (
                     <div className="product-detail-description">
                       {selectedProduct.description}
                     </div>
                   )}
+
                   <div className="specifications-section">
                     <h3 className="specifications-title">Specifications</h3>
                     <div className="specifications-table">
+                      {/* Display all relevant product data as specs */}
                       {selectedProduct.sku && (
                         <div className="spec-row">
                           <div className="spec-label">SKU</div>
