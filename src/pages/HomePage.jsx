@@ -1,175 +1,228 @@
-// src/pages/HomePage.jsx - Fixed rendering loop
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import '../App.css';
+import '../index.css';
 
-// Define categories outside component to prevent recreation on each render
-const CATEGORIES = [
+// Singular collection names in Firebase
+const COLLECTION_NAMES = [
   'All', 'Bracelet', 'Brooch', 'Earring',
-  'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch'
+  'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch', 'Art'
 ];
+
+// Mapping from URL paths to collection names
+const PATH_TO_COLLECTION = {
+  'bracelet': 'Bracelet',
+  'bracelets': 'Bracelet',
+  'brooch': 'Brooch',
+  'brooches': 'Brooch',
+  'earring': 'Earring',
+  'earrings': 'Earring',
+  'necklace': 'Necklace',
+  'necklaces': 'Necklace',
+  'pendant': 'Pendant',
+  'pendants': 'Pendant',
+  'pin': 'Pin',
+  'pins': 'Pin',
+  'ring': 'Ring',
+  'rings': 'Ring',
+  'watch': 'Watch',
+  'watches': 'Watch',
+  'art': 'Art'
+};
 
 export default function HomePage({ onLogout }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCollection, setActiveCollection] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productDetailOpen, setProductDetailOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { category } = useParams();
   const navigate = useNavigate();
 
-  // Set initial category from URL parameter - only once on mount or when URL changes
+  // Map URL category parameter to Firebase collection name
   useEffect(() => {
     if (category) {
-      const cap = category.charAt(0).toUpperCase() + category.slice(1);
-      if (CATEGORIES.includes(cap)) {
-        setActiveCategory(cap);
-      }
+      const categoryLower = category.toLowerCase();
+      const collectionName = PATH_TO_COLLECTION[categoryLower] || 'All';
+      setActiveCollection(collectionName);
     } else {
-      setActiveCategory('All');
+      setActiveCollection('All');
     }
-  }, [category]); // Only depend on URL parameter
+  }, [category]);
 
-  // Fetch products when activeCategory changes
+  // Fetch products whenever activeCollection changes
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const toFetch =
+        activeCollection === 'All'
+          ? COLLECTION_NAMES.filter(c => c !== 'All')
+          : [activeCollection];
+
+      const all = [];
+      const promises = toFetch.map(col =>
+        getDocs(collection(db, col)).then(snap =>
+          snap.docs.map(d => ({ id: d.id, category: col, ...d.data() }))
+        )
+      );
+
+      const results = await Promise.all(promises);
+      results.forEach(items => all.push(...items));
+      setProducts(all);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeCollection]);
+
   useEffect(() => {
-    async function fetchProducts() {
-      setLoading(true);
-      try {
-        const toFetch =
-          activeCategory === 'All'
-            ? CATEGORIES.filter(c => c !== 'All')
-            : [activeCategory];
-
-        const all = [];
-        for (const col of toFetch) {
-          const snap = await getDocs(collection(db, col));
-          all.push(
-            ...snap.docs.map(d => ({ id: d.id, category: col, ...d.data() }))
-          );
-        }
-
-        setProducts(all);
-      } catch (err) {
-        console.error('Error fetching products:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchProducts();
-  }, [activeCategory]); // Only depend on activeCategory
+  }, [fetchProducts]);
 
-  // Open / close modal
-  const openDetail = (prod) => {
+  // Modal handlers
+  const openDetail = useCallback(prod => {
     setSelectedProduct(prod);
+    setCurrentImageIndex(0); // Reset image index when opening modal
     setProductDetailOpen(true);
     document.body.classList.add('modal-open');
-  };
+  }, []);
 
-  const closeDetail = () => {
+  const closeDetail = useCallback(() => {
     setProductDetailOpen(false);
     document.body.classList.remove('modal-open');
-  };
+    setTimeout(() => {
+      setSelectedProduct(null);
+      setCurrentImageIndex(0); // Reset image index when closing modal
+    }, 300);
+  }, []);
 
-  // Navigate product images
-  const navigateImages = (direction) => {
-    if (!selectedProduct?.images || selectedProduct.images.length <= 1) return;
+  // Image carousel - improved navigation
+  const navigateImages = useCallback(
+    direction => {
+      if (!selectedProduct?.images || selectedProduct.images.length <= 1) return;
 
-    const imgs = [...selectedProduct.images];
-    if (direction === 'next') {
-      const firstImg = imgs.shift();
-      imgs.push(firstImg);
-    } else {
-      const lastImg = imgs.pop();
-      imgs.unshift(lastImg);
+      setCurrentImageIndex(prevIndex => {
+        const totalImages = selectedProduct.images.length;
+        if (direction === 'next') {
+          return (prevIndex + 1) % totalImages;
+        } else {
+          return (prevIndex - 1 + totalImages) % totalImages;
+        }
+      });
+    },
+    [selectedProduct]
+  );
+
+  const selectImage = useCallback(
+    index => {
+      if (!selectedProduct?.images) return;
+      setCurrentImageIndex(index);
+    },
+    [selectedProduct]
+  );
+
+  // Price formatter
+  const formatPrice = useMemo(
+    () => num =>
+      num == null
+        ? ''
+        : new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(num),
+    []
+  );
+
+  // ESC key → close modal
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape' && productDetailOpen) closeDetail();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [productDetailOpen, closeDetail]);
+
+  // Arrow key navigation for images
+  useEffect(() => {
+    const handleKeyDown = e => {
+      if (!productDetailOpen || !selectedProduct?.images || selectedProduct.images.length <= 1) return;
+
+      if (e.key === 'ArrowLeft') {
+        navigateImages('prev');
+      } else if (e.key === 'ArrowRight') {
+        navigateImages('next');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [productDetailOpen, selectedProduct, navigateImages]);
+
+  // Loading skeleton
+  const loadingSkeletons = useMemo(
+    () => (
+      <div className="product-grid">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="product-skeleton">
+            <div className="skeleton-image" />
+            <div className="skeleton-text-short" />
+            <div className="skeleton-text-long" />
+          </div>
+        ))}
+      </div>
+    ),
+    []
+  );
+
+  // Get a display-friendly category name (pluralized)
+  const getCategoryDisplay = (category) => {
+    switch (category) {
+      case 'Bracelet': return 'Bracelets';
+      case 'Brooch': return 'Brooches';
+      case 'Earring': return 'Earrings';
+      case 'Necklace': return 'Necklaces';
+      case 'Pendant': return 'Pendants';
+      case 'Ring': return 'Rings';
+      case 'Watch': return 'Watches';
+      case 'Pin': return 'Pins';
+      case 'Art': return 'Art';
+      default: return category;
     }
-
-    setSelectedProduct({ ...selectedProduct, images: imgs });
-  };
-
-  // Format wholesale price as USD with no cents
-  const formatPrice = (num) => {
-    if (num == null) return '';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(num);
-  };
-
-  // Handle category change - use React Router navigation instead of direct DOM manipulation
-  const handleCategoryChange = (cat) => {
-    if (cat === activeCategory) return;
-
-    // Use React Router's navigate to handle URL changes
-    if (cat === 'All') {
-      navigate('/');
-    } else {
-      navigate(`/${cat.toLowerCase()}`);
-    }
-    // Note: setActiveCategory is not needed here as it will be handled by the useEffect that watches the URL
   };
 
   return (
     <div className="home-container">
-      {/* Navbar component */}
       <Navbar />
-
-      {/* Main content */}
       <main className="main-content">
         <div className="container">
-          {/* Collection title */}
-          <h1 className="collection-title">Collection</h1>
-
-          {/* Category filters */}
-          <div className="category-filters">
-            <div className="category-buttons">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => handleCategoryChange(cat)}
-                  className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Products grid */}
           <div className="products-section">
             {loading ? (
-              <div className="product-grid">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="product-skeleton">
-                    <div className="skeleton-image"></div>
-                    <div className="skeleton-text-short"></div>
-                    <div className="skeleton-text-long"></div>
-                  </div>
-                ))}
-              </div>
+              loadingSkeletons
             ) : products.length > 0 ? (
               <div className="product-grid">
-                {products.map(product => (
+                {products.map(prod => (
                   <div
-                    key={product.id}
+                    key={prod.id}
                     className="product-item"
-                    onClick={() => openDetail(product)}
+                    onClick={() => openDetail(prod)}
                   >
                     <div className="product-image-container">
-                      {product.images?.[0] ? (
+                      {prod.images?.[0] ? (
                         <img
-                          src={product.images[0]}
-                          alt={product.title || "Product image"}
+                          src={prod.images[0]}
+                          alt={prod.title || 'Product'}
                           className="product-image"
                           loading="lazy"
-                          onError={e => {
-                            e.currentTarget.src = 'https://via.placeholder.com/400x400?text=Product';
-                          }}
+                          onError={e =>
+                          (e.currentTarget.src =
+                            'https://via.placeholder.com/400x400?text=Product')
+                          }
                         />
                       ) : (
                         <div className="product-no-image">
@@ -179,10 +232,10 @@ export default function HomePage({ onLogout }) {
                     </div>
                     <div className="product-info">
                       <h3 className="product-title">
-                        {product.title || product.cut || product.id}
+                        {prod.title || prod.cut || prod.id}
                       </h3>
                       <p className="product-price">
-                        {formatPrice(product.wholesale)}
+                        {formatPrice(prod.wholesale)}
                       </p>
                     </div>
                   </div>
@@ -197,142 +250,155 @@ export default function HomePage({ onLogout }) {
         </div>
       </main>
 
-      {/* Product detail modal - Apple-esque design */}
-      {productDetailOpen && selectedProduct && (
-        <div className="product-detail-overlay" onClick={closeDetail}>
-          <div className="product-detail-modal" onClick={e => e.stopPropagation()}>
+      {/* Product Detail Modal */}
+      {productDetailOpen && (
+        <div
+          className="product-detail-overlay"
+          onClick={e => {
+            if (e.target === e.currentTarget) closeDetail();
+          }}
+        >
+          <div className="product-detail-modal">
             <button className="close-modal" onClick={closeDetail}>
-              <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L16 16M1 16L16 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+              ×
             </button>
 
-            <div className="product-detail-content">
-              {/* Left: Image with navigation controls */}
-              <div className="product-detail-image">
-                <div className="product-detail-image-container">
-                  {selectedProduct.images?.length > 1 && (
-                    <button
-                      className="image-nav image-nav-prev"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigateImages('prev');
-                      }}
-                      aria-label="Previous image"
-                    >
-                      <svg width="12" height="20" viewBox="0 0 12 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M10 2L2 10L10 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
+            {selectedProduct && (
+              <div className="product-detail-content">
+                <div className="product-detail-image">
+                  <div className="product-detail-image-container">
+                    {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                      <>
+                        <div className="carousel-image-wrapper">
+                          <img
+                            src={selectedProduct.images[currentImageIndex]}
+                            alt={selectedProduct.title || 'Product'}
+                            className="carousel-image"
+                            onError={e =>
+                            (e.currentTarget.src =
+                              'https://via.placeholder.com/500x500?text=No+Image')
+                            }
+                          />
+                        </div>
 
-                  <img
-                    src={selectedProduct.images?.[0] || 'https://via.placeholder.com/600x600?text=No+Image'}
-                    alt={selectedProduct.title || "Product detail"}
-                    className="main-product-image"
-                  />
+                        {selectedProduct.images.length > 1 && (
+                          <>
+                            <button
+                              className="image-nav image-nav-prev"
+                              onClick={e => {
+                                e.stopPropagation();
+                                navigateImages('prev');
+                              }}
+                              aria-label="Previous image"
+                            >
+                              <span className="nav-arrow">‹</span>
+                            </button>
+                            <button
+                              className="image-nav image-nav-next"
+                              onClick={e => {
+                                e.stopPropagation();
+                                navigateImages('next');
+                              }}
+                              aria-label="Next image"
+                            >
+                              <span className="nav-arrow">›</span>
+                            </button>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <div className="product-no-image">Image not available</div>
+                    )}
+                  </div>
 
-                  {selectedProduct.images?.length > 1 && (
-                    <button
-                      className="image-nav image-nav-next"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigateImages('next');
-                      }}
-                      aria-label="Next image"
-                    >
-                      <svg width="12" height="20" viewBox="0 0 12 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2 2L10 10L2 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
-
-                  {/* Image pagination dots */}
-                  {selectedProduct.images?.length > 1 && (
+                  {selectedProduct.images && selectedProduct.images.length > 1 && (
                     <div className="pagination-dots">
-                      {selectedProduct.images.map((_, i) => (
+                      {selectedProduct.images.map((_, index) => (
                         <button
-                          key={i}
-                          className={`pagination-dot ${i === 0 ? 'active' : ''}`}
-                          onClick={(e) => {
+                          key={index}
+                          className={`pagination-dot ${index === currentImageIndex ? 'active' : ''}`}
+                          onClick={e => {
                             e.stopPropagation();
-                            const imgs = [...selectedProduct.images];
-                            const selected = imgs.splice(i, 1)[0];
-                            imgs.unshift(selected);
-                            setSelectedProduct({ ...selectedProduct, images: imgs });
+                            selectImage(index);
                           }}
-                          aria-label={`View image ${i + 1}`}
+                          aria-label={`View image ${index + 1}`}
                         />
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Right: Details and Specifications */}
-              <div className="product-detail-info">
-                <h1 className="product-detail-title">{selectedProduct.title || selectedProduct.cut || selectedProduct.id}</h1>
-                <p className="product-detail-category">{selectedProduct.category}</p>
-                <p className="product-detail-price">{formatPrice(selectedProduct.wholesale)}</p>
+                <div className="product-detail-info">
+                  <p className="product-detail-category">
+                    {getCategoryDisplay(selectedProduct.category)}
+                  </p>
+                  <h2 className="product-detail-title">
+                    {selectedProduct.title || selectedProduct.cut || selectedProduct.id}
+                  </h2>
+                  <p className="product-detail-price">
+                    {formatPrice(selectedProduct.wholesale)}
+                  </p>
 
-                <div className="product-detail-description">
-                  {selectedProduct.description || 'This exquisite piece exemplifies fine craftsmanship and timeless design. Made with meticulous attention to detail, it represents the pinnacle of luxury and elegance.'}
-                </div>
+                  {selectedProduct.description && (
+                    <div className="product-detail-description">
+                      {selectedProduct.description}
+                    </div>
+                  )}
 
-                <div className="specifications-section">
-                  <h3 className="specifications-title">Specifications</h3>
-                  <div className="specifications-table">
-                    {selectedProduct.metal && (
-                      <div className="spec-row">
-                        <div className="spec-label">Metal</div>
-                        <div className="spec-value">{selectedProduct.metal}</div>
-                      </div>
-                    )}
-                    {selectedProduct.stone && (
-                      <div className="spec-row">
-                        <div className="spec-label">Stone</div>
-                        <div className="spec-value">{selectedProduct.stone}</div>
-                      </div>
-                    )}
-                    {selectedProduct.total_weight && (
-                      <div className="spec-row">
-                        <div className="spec-label">Weight</div>
-                        <div className="spec-value">{selectedProduct.total_weight}g</div>
-                      </div>
-                    )}
-                    {selectedProduct.sku && (
-                      <div className="spec-row">
-                        <div className="spec-label">SKU</div>
-                        <div className="spec-value">{selectedProduct.sku}</div>
-                      </div>
-                    )}
+                  <div className="specifications-section">
+                    <h3 className="specifications-title">Specifications</h3>
+                    <div className="specifications-table">
+                      {/* Display all relevant product data as specs */}
+                      {selectedProduct.sku && (
+                        <div className="spec-row">
+                          <div className="spec-label">SKU</div>
+                          <div className="spec-value">{selectedProduct.sku}</div>
+                        </div>
+                      )}
+                      {selectedProduct.stone && (
+                        <div className="spec-row">
+                          <div className="spec-label">Stone Type</div>
+                          <div className="spec-value">{selectedProduct.stone}</div>
+                        </div>
+                      )}
+                      {selectedProduct.total_weight && (
+                        <div className="spec-row">
+                          <div className="spec-label">Total Weight</div>
+                          <div className="spec-value">{selectedProduct.total_weight}</div>
+                        </div>
+                      )}
+                      {selectedProduct.metal && (
+                        <div className="spec-row">
+                          <div className="spec-label">Metal</div>
+                          <div className="spec-value">{selectedProduct.metal}</div>
+                        </div>
+                      )}
+                      {selectedProduct.cut && (
+                        <div className="spec-row">
+                          <div className="spec-label">Cut</div>
+                          <div className="spec-value">{selectedProduct.cut}</div>
+                        </div>
+                      )}
+                      {selectedProduct.availability !== undefined && (
+                        <div className="spec-row">
+                          <div className="spec-label">Availability</div>
+                          <div className="spec-value">
+                            {selectedProduct.availability ? 'In Stock' : 'Out of Stock'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                <div className="product-action-buttons">
-                  <button
-                    className="contact-button"
-                    onClick={() => {
-                      window.location.href = `mailto:HELLO@DAVID&CO.COM?subject=Inquiry about ${selectedProduct.title || selectedProduct.id}`;
-                    }}
-                  >
-                    Contact About This Piece
-                  </button>
-                  <button className="continue-shopping-button" onClick={closeDetail}>
-                    Continue Browsing
-                  </button>
-                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Footer */}
       <footer className="main-footer">
         <div className="container">
           <p>© {new Date().getFullYear()} David &amp; Co</p>
-
           <button onClick={onLogout} className="logout-button">
             Sign Out
           </button>
