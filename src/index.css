@@ -96,17 +96,47 @@ h6 {
     text-align: center;
 }
 
+.header-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+}
+
+/* Contact Information Bar */
+.contact-info-bar {
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    padding: 4px 0;
+}
+
+.contact-details {
+    display: flex;
+    justify-content: center; /* Changed from flex-end to center */
+    align-items: center;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.4); /* Faded text color */
+    letter-spacing: 0.5px;
+}
+
+.contact-item {
+    margin: 0 6px;
+    font-weight: 300;
+}
+
+.contact-divider {
+    font-size: 8px;
+    opacity: 0.5;
+}
+
 /* Header and Navigation */
 .main-header {
     background-color: rgba(255, 255, 255, 0.9);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 50;
     padding: 16px 0;
 }
 
@@ -157,6 +187,13 @@ h6 {
 .category-btn:not(.active):hover {
     color: var(--text-primary);
     background-color: var(--secondary-bg);
+}
+
+/* Main content styles: ensure products sit below header */
+.main-content {
+    padding-top: 189px; /* Increased to account for contact bar */
+    min-height: calc(100vh - 130px);
+    flex: 1;
 }
 
 /* Product Grid - 3 per row on all screen sizes */
@@ -576,13 +613,6 @@ h6 {
     color: var(--text-secondary);
 }
 
-/* Main content styles: ensure products sit below header */
-.main-content {
-    padding-top: 160px;
-    min-height: calc(100vh - 130px);
-    flex: 1;
-}
-
 /* Footer */
 footer {
     border-top: 1px solid #e0e0e0;
@@ -633,6 +663,15 @@ footer {
     .container {
         max-width: 1500px;
     }
+    
+    /* Contact info bar responsiveness */
+    .contact-details {
+        font-size: 13px;
+    }
+    
+    .contact-item {
+        margin: 0 8px;
+    }
 }
 
 @media (max-width: 992px) {
@@ -670,6 +709,10 @@ footer {
 
     .collection-title {
         font-size: 32px;
+    }
+    
+    .main-content {
+        padding-top: 215px; /* Adjusted for mobile layout */
     }
 }
 

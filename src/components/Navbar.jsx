@@ -31,6 +31,12 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Your contact information - Replace with your actual info
+  const contactInfo = {
+    phone: "+1 (603) 933-1290",
+    email: "cclose@shrevecrumpandlow.com"
+  };
+
   // Determine active category from URL path
   const activeCategory = (() => {
     const path = location.pathname.slice(1); // Remove leading slash
@@ -52,23 +58,36 @@ const Navbar = () => {
   };
 
   return (
-    <header className="main-header">
-      <div className="container navbar">
-        <Link to="/" className="brand-logo">David & Co</Link>
-
-        <nav className="category-nav">
-          {DISPLAY_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => handleCategoryChange(cat)}
-              className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
-            >
-              {cat}
-            </button>
-          ))}
-        </nav>
+    <div className="header-container">
+      {/* Contact info bar - subtle and minimalist */}
+      <div className="contact-info-bar">
+        <div className="container">
+          <div className="contact-details">
+            <span className="contact-item">{contactInfo.phone}</span>
+            <span className="contact-divider">•</span>
+            <span className="contact-item">{contactInfo.email}</span>
+          </div>
+        </div>
       </div>
-    </header>
+      
+      <header className="main-header">
+        <div className="container navbar">
+          <Link to="/" className="brand-logo">David & Co</Link>
+
+          <nav className="category-nav">
+            {DISPLAY_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => handleCategoryChange(cat)}
+                className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+    </div>
   );
 };
 
