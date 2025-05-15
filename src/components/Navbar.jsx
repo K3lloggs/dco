@@ -1,99 +1,110 @@
-import React from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
-// Display names (plural) for UI
+// Display labels shown in the UI
 const DISPLAY_CATEGORIES = [
   'All', 'Bracelets', 'Brooches', 'Earrings',
   'Necklaces', 'Pendants', 'Rings', 'Watches', 'Art'
 ];
 
-// Mapping between display names and collection names
+// Map UI labels → collection names
 const CATEGORY_MAPPING = {
-  'All': 'All',
-  'Bracelets': 'Bracelet',
-  'Brooches': 'Brooch',
-  'Earrings': 'Earring',
-  'Necklaces': 'Necklace',
-  'Pendants': 'Pendant',
-  'Pins': 'Pin',
-  'Rings': 'Ring',
-  'Watches': 'Watch',
-  'Art': 'Art'
+  All: 'All',
+  Bracelets: 'Bracelet',
+  Brooches: 'Brooch',
+  Earrings: 'Earring',
+  Necklaces: 'Necklace',
+  Pendants: 'Pendant',
+  Rings: 'Ring',
+  Watches: 'Watch',
+  Art: 'Art',
 };
 
-// Reverse mapping (singular to plural) for URL path handling
-const REVERSE_MAPPING = Object.entries(CATEGORY_MAPPING).reduce((acc, [display, collection]) => {
-  acc[collection.toLowerCase()] = display;
-  return acc;
-}, {});
+// Reverse mapping (singular → plural) for URL handling
+const REVERSE_MAPPING = Object.entries(CATEGORY_MAPPING).reduce(
+  (acc, [display, collection]) => {
+    acc[collection.toLowerCase()] = display;
+    return acc;
+  },
+  {},
+);
 
-const Navbar = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+export default function Navbar({ onSearch }) {
+  const navigate        = useNavigate();
+  const location        = useLocation();
+  const [query, setQuery] = useState('');
 
-  // Your contact information - Replace with your actual info
-  const contactInfo = {
-    phone: "+1 (603) 933-1290",
-    email: "cclose@shrevecrumpandlow.com",
-    store: "+1 (617) 267-9100",
-  };
-
-  // Determine active category from URL path
+  /* ── Derive the active category from URL ─────────────────── */
   const activeCategory = (() => {
-    const path = location.pathname.slice(1); // Remove leading slash
-    if (!path) return 'All'; // Home path
-
-    // Convert path to display category
-    const pathLower = path.toLowerCase();
-    return REVERSE_MAPPING[pathLower] || 'All';
+    const slug = location.pathname.slice(1).toLowerCase();
+    return slug ? REVERSE_MAPPING[slug] || 'All' : 'All';
   })();
 
-  const handleCategoryChange = (displayCat) => {
-    if (displayCat === 'All') {
-      navigate('/');
-    } else {
-      // Use the singular form for the URL
-      const collectionName = CATEGORY_MAPPING[displayCat].toLowerCase();
-      navigate(`/${collectionName}`);
-    }
+  /* ── Handlers ─────────────────────────────────────────────── */
+  const selectCategory = (display) => {
+    if (display === 'All') return navigate('/');
+    navigate(`/${CATEGORY_MAPPING[display].toLowerCase()}`);
   };
 
+  const submitSearch = (e) => {
+    e.preventDefault();
+    if (onSearch) onSearch(query.trim());
+  };
+
+  const clearSearch = () => {
+    setQuery('');
+    if (onSearch) onSearch('');
+  };
+
+  /* ── Render ──────────────────────────────────────────────── */
   return (
-    <div className="header-container">
-      {/* Contact info bar - subtle and minimalist */}
-      <div className="contact-info-bar">
-        <div className="container">
-          <div className="contact-details">
-            <span className="contact-item">{contactInfo.phone}</span>
-            <span className="contact-divider">•</span>
-            <span className="contact-item">{contactInfo.email}</span>
-            <span className="contact-item">{contactInfo.store}</span>
-            <span className="contact-divider">•</span>
-
-            
-          </div>
-        </div>
+    <header className="main-header">
+      {/* Top contact strip */}
+      <div className="top-contact">
+        <a href="mailto:info@davidandco.com">info@davidandco.com</a>
+        <span className="divider">•</span>
+        <a href="tel:+16175551234">(617) 555-1234</a>
       </div>
-      
-      <header className="main-header">
-        <div className="container navbar">
-          <Link to="/" className="brand-logo">David & Co</Link>
 
-          <nav className="category-nav">
-            {DISPLAY_CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => handleCategoryChange(cat)}
-                className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
-              >
-                {cat}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </header>
-    </div>
+      {/* Primary nav */}
+      <div className="container navbar">
+        <Link to="/" className="brand-logo">David & Co</Link>
+
+        <nav className="category-nav">
+          {DISPLAY_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => selectCategory(cat)}
+              className={`category-btn${activeCategory === cat ? ' active' : ''}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </nav>
+
+        <form onSubmit={submitSearch} className="search-form">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={clearSearch}
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          )}
+          <button type="submit" className="search-submit-btn" aria-label="Search">
+            🔍
+          </button>
+        </form>
+      </div>
+    </header>
   );
-};
-
-export default Navbar;
+}

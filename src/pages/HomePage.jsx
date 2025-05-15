@@ -34,11 +34,14 @@ const PATH_TO_COLLECTION = {
 
 export default function HomePage({ onLogout }) {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCollection, setActiveCollection] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productDetailOpen, setProductDetailOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [randomizedAllProducts, setRandomizedAllProducts] = useState([]);
   const { category } = useParams();
   const navigate = useNavigate();
 
@@ -71,17 +74,89 @@ export default function HomePage({ onLogout }) {
 
       const results = await Promise.all(promises);
       results.forEach(items => all.push(...items));
-      setProducts(all);
+
+      // Use randomized products for "All" tab if available, otherwise create and store them
+      if (activeCollection === 'All' && randomizedAllProducts.length > 0) {
+        // Use the stored randomized products
+        setProducts(randomizedAllProducts);
+        setFilteredProducts(randomizedAllProducts);
+      } else if (activeCollection === 'All') {
+        // Create a randomized version of all products for the "All" tab
+        const shuffled = [...all].sort(() => Math.random() - 0.5);
+        setRandomizedAllProducts(shuffled);
+        setProducts(shuffled);
+        setFilteredProducts(shuffled);
+      } else {
+        // For specific categories, keep original order
+        setProducts(all);
+        setFilteredProducts(all);
+      }
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {
       setLoading(false);
     }
-  }, [activeCollection]);
+  }, [activeCollection, randomizedAllProducts]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Handle search functionality
+  const handleSearch = useCallback((query) => {
+    setSearchQuery(query);
+
+    if (!query.trim()) {
+      // When clearing search, show either randomized or normal products depending on active collection
+      if (activeCollection === 'All') {
+        setFilteredProducts(randomizedAllProducts.length > 0 ? randomizedAllProducts : products);
+      } else {
+        setFilteredProducts(products);
+      }
+      return;
+    }
+
+    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+
+    const filtered = products.filter(product => {
+      // Search in these fields
+      const searchableFields = [
+        product.title,
+        product.cut,
+        product.description,
+        product.stone,
+        product.metal,
+        product.sku,
+        product.category
+      ];
+
+      // Convert to string and filter out null/undefined
+      const searchableText = searchableFields
+        .filter(field => field)
+        .map(field => String(field).toLowerCase());
+
+      // Check if all search terms are found in at least one of the searchable fields
+      return searchTerms.every(term =>
+        searchableText.some(text => text.includes(term))
+      );
+    });
+
+    setFilteredProducts(filtered);
+  }, [products, activeCollection, randomizedAllProducts]);
+
+  // Reset filtered products when products change
+  useEffect(() => {
+    if (!searchQuery) {
+      if (activeCollection === 'All' && randomizedAllProducts.length > 0) {
+        setFilteredProducts(randomizedAllProducts);
+      } else {
+        setFilteredProducts(products);
+      }
+    } else {
+      // Re-apply search filter when products change
+      handleSearch(searchQuery);
+    }
+  }, [products, searchQuery, handleSearch, activeCollection, randomizedAllProducts]);
 
   // Modal handlers
   const openDetail = useCallback(prod => {
@@ -198,15 +273,29 @@ export default function HomePage({ onLogout }) {
 
   return (
     <div className="home-container">
-      <Navbar />
+      <Navbar onSearch={handleSearch} />
       <main className="main-content">
         <div className="container">
+          {searchQuery && (
+            <div className="search-results-header">
+              <h2>Results for "{searchQuery}"</h2>
+              <button
+                className="clear-search-btn"
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilteredProducts(activeCollection === 'All' ? randomizedAllProducts : products);
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <div className="products-section">
             {loading ? (
               loadingSkeletons
-            ) : products.length > 0 ? (
+            ) : filteredProducts.length > 0 ? (
               <div className="product-grid">
-                {products.map(prod => (
+                {filteredProducts.map(prod => (
                   <div
                     key={prod.id}
                     className="product-item"
@@ -243,7 +332,9 @@ export default function HomePage({ onLogout }) {
               </div>
             ) : (
               <p className="empty-message">
-                No products in this category.
+                {searchQuery
+                  ? `No products found matching "${searchQuery}"`
+                  : "No products in this category."}
               </p>
             )}
           </div>
@@ -279,6 +370,23 @@ export default function HomePage({ onLogout }) {
                               'https://via.placeholder.com/500x500?text=No+Image')
                             }
                           />
+
+                          {/* Pagination dots positioned inside the image container */}
+                          {selectedProduct.images.length > 1 && (
+                            <div className="pagination-dots">
+                              {selectedProduct.images.map((_, index) => (
+                                <button
+                                  key={index}
+                                  className={`pagination-dot ${index === currentImageIndex ? 'active' : ''}`}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    selectImage(index);
+                                  }}
+                                  aria-label={`View image ${index + 1}`}
+                                />
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {selectedProduct.images.length > 1 && (
@@ -310,22 +418,6 @@ export default function HomePage({ onLogout }) {
                       <div className="product-no-image">Image not available</div>
                     )}
                   </div>
-
-                  {selectedProduct.images && selectedProduct.images.length > 1 && (
-                    <div className="pagination-dots">
-                      {selectedProduct.images.map((_, index) => (
-                        <button
-                          key={index}
-                          className={`pagination-dot ${index === currentImageIndex ? 'active' : ''}`}
-                          onClick={e => {
-                            e.stopPropagation();
-                            selectImage(index);
-                          }}
-                          aria-label={`View image ${index + 1}`}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="product-detail-info">
