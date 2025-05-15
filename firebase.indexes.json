@@ -1,0 +1,117 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "Bracelet",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "Brooch",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "Earring",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "Necklace",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "Pendant",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "Ring",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "Watch",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "Art",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "wholesale",
+                    "order": "DESCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

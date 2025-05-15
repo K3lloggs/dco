@@ -34,11 +34,13 @@ const PATH_TO_COLLECTION = {
 
 export default function HomePage({ onLogout }) {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCollection, setActiveCollection] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productDetailOpen, setProductDetailOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const { category } = useParams();
   const navigate = useNavigate();
 
@@ -72,6 +74,7 @@ export default function HomePage({ onLogout }) {
       const results = await Promise.all(promises);
       results.forEach(items => all.push(...items));
       setProducts(all);
+      setFilteredProducts(all); // Initialize filtered products with all products
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {
@@ -82,6 +85,53 @@ export default function HomePage({ onLogout }) {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Handle search functionality
+  const handleSearch = useCallback((query) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setFilteredProducts(products);
+      return;
+    }
+    
+    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+    
+    const filtered = products.filter(product => {
+      // Search in these fields
+      const searchableFields = [
+        product.title,
+        product.cut,
+        product.description,
+        product.stone,
+        product.metal,
+        product.sku,
+        product.category
+      ];
+      
+      // Convert to string and filter out null/undefined
+      const searchableText = searchableFields
+        .filter(field => field)
+        .map(field => String(field).toLowerCase());
+      
+      // Check if all search terms are found in at least one of the searchable fields
+      return searchTerms.every(term => 
+        searchableText.some(text => text.includes(term))
+      );
+    });
+    
+    setFilteredProducts(filtered);
+  }, [products]);
+
+  // Reset filtered products when products change
+  useEffect(() => {
+    if (!searchQuery) {
+      setFilteredProducts(products);
+    } else {
+      // Re-apply search filter when products change
+      handleSearch(searchQuery);
+    }
+  }, [products, searchQuery, handleSearch]);
 
   // Modal handlers
   const openDetail = useCallback(prod => {
@@ -198,15 +248,29 @@ export default function HomePage({ onLogout }) {
 
   return (
     <div className="home-container">
-      <Navbar />
+      <Navbar onSearch={handleSearch} />
       <main className="main-content">
         <div className="container">
+          {searchQuery && (
+            <div className="search-results-header">
+              <h2>Results for "{searchQuery}"</h2>
+              <button 
+                className="clear-search-btn"
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilteredProducts(products);
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <div className="products-section">
             {loading ? (
               loadingSkeletons
-            ) : products.length > 0 ? (
+            ) : filteredProducts.length > 0 ? (
               <div className="product-grid">
-                {products.map(prod => (
+                {filteredProducts.map(prod => (
                   <div
                     key={prod.id}
                     className="product-item"
@@ -243,7 +307,9 @@ export default function HomePage({ onLogout }) {
               </div>
             ) : (
               <p className="empty-message">
-                No products in this category.
+                {searchQuery 
+                  ? `No products found matching "${searchQuery}"`
+                  : "No products in this category."}
               </p>
             )}
           </div>

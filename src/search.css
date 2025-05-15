@@ -1,0 +1,121 @@
+/* Search component styles - Swiss minimal design */
+.search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-left: 16px;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    width: 220px;
+    background-color: var(--secondary-bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    padding: 8px 12px;
+    font-size: 14px;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+}
+
+.search-input::placeholder {
+    color: var(--text-tertiary);
+    font-weight: 300;
+}
+
+.search-submit-btn, 
+.search-clear-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
+.search-submit-btn:hover, 
+.search-clear-btn:hover {
+    color: var(--text-primary);
+}
+
+/* Search results header */
+.search-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: -60px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 16px;
+}
+
+.search-results-header h2 {
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.clear-search-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.clear-search-btn:hover {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+    background-color: var(--secondary-bg);
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .search-form {
+        width: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .search-container {
+        margin: 12px 0 0;
+    }
+    
+    .search-form {
+        width: 100%;
+    }
+    
+    .search-results-header {
+        margin-top: -40px;
+    }
+    
+    .category-nav {
+        padding-right: 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .search-results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .clear-search-btn {
+        align-self: flex-start;
+    }
+}
