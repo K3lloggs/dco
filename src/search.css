@@ -32,7 +32,7 @@
     font-weight: 300;
 }
 
-.search-submit-btn, 
+.search-submit-btn,
 .search-clear-btn {
     background: none;
     border: none;
@@ -44,7 +44,7 @@
     color: var(--text-secondary);
 }
 
-.search-submit-btn:hover, 
+.search-submit-btn:hover,
 .search-clear-btn:hover {
     color: var(--text-primary);
 }
@@ -94,15 +94,15 @@
     .search-container {
         margin: 12px 0 0;
     }
-    
+
     .search-form {
         width: 100%;
     }
-    
+
     .search-results-header {
         margin-top: -40px;
     }
-    
+
     .category-nav {
         padding-right: 0;
     }
@@ -114,7 +114,7 @@
         align-items: flex-start;
         gap: 12px;
     }
-    
+
     .clear-search-btn {
         align-self: flex-start;
     }

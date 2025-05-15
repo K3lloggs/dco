@@ -1,0 +1,105 @@
+/* Loading animations and smooth transitions */
+
+/* Fade-in animation for product grid */
+.product-grid {
+    min-height: 400px; /* Prevent layout shifts during load */
+    opacity: 0;
+    animation: fadeInGrid 0.5s ease forwards;
+}
+
+@keyframes fadeInGrid {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Staggered animation for product items */
+.product-item {
+    opacity: 0;
+    transform: translateY(15px);
+    animation: fadeInItem 0.5s ease forwards;
+    animation-delay: calc(var(--animation-order, 0) * 50ms);
+}
+
+@keyframes fadeInItem {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Initial page load animation */
+.page-transition-enter {
+    opacity: 0;
+}
+
+.page-transition-enter-active {
+    opacity: 1;
+    transition: opacity 300ms;
+}
+
+.page-transition-exit {
+    opacity: 1;
+}
+
+.page-transition-exit-active {
+    opacity: 0;
+    transition: opacity 300ms;
+}
+
+/* Enhanced loading spinner */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.loading-overlay.fade-out {
+    opacity: 0;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(0, 0, 0, 0.05);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Transition for category changes */
+.category-transition {
+    opacity: 0;
+    animation: fadeCategory 0.3s ease forwards;
+}
+
+@keyframes fadeCategory {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
