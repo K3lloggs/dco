@@ -55,9 +55,9 @@ export default function Navbar({ onSearch }) {
     <header className="main-header">
       {/* contact strip */}
       <div className="top-contact">
-        <a href="mailto:info@davidandco.com">info@davidandco.com</a>
+        <a href="mailto:Cclose@Shrevecrumpandlow.com">Cclose@ShreveCrumpandlow.com</a>
         <span className="divider">•</span>
-        <a href="tel:+16175551234">(617) 555-1234</a>
+        <a href="">(617) 267-9100</a>
       </div>
 
       {/* nav */}
