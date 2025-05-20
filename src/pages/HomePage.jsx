@@ -8,7 +8,7 @@ import '../index.css';
 // Singular collection names in Firebase
 const COLLECTION_NAMES = [
   'All', 'Bracelet', 'Brooch', 'Earring',
-  'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch', 'Art'
+  'Necklace', 'Pendant', 'Pin', 'Ring', 'Watch', 'Art', 'Gem'
 ];
 
 // Mapping from URL paths to collection names
@@ -29,7 +29,9 @@ const PATH_TO_COLLECTION = {
   'rings': 'Ring',
   'watch': 'Watch',
   'watches': 'Watch',
-  'art': 'Art'
+  'art': 'Art',
+  'stones': 'Gem',
+  'gems': 'Gem'
 };
 
 export default function HomePage({ onLogout }) {
@@ -60,20 +62,25 @@ export default function HomePage({ onLogout }) {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const toFetch =
-        activeCollection === 'All'
-          ? COLLECTION_NAMES.filter(c => c !== 'All')
-          : [activeCollection];
+      let collectionsToFetch = [];
 
-      const all = [];
-      const promises = toFetch.map(col =>
+      if (activeCollection === 'All') {
+        // Fetch all collections except 'All'
+        collectionsToFetch = COLLECTION_NAMES.filter(c => c !== 'All');
+      } else {
+        // Fetch only the active collection
+        collectionsToFetch = [activeCollection];
+      }
+
+      const allProducts = [];
+      const promises = collectionsToFetch.map(col =>
         getDocs(collection(db, col)).then(snap =>
           snap.docs.map(d => ({ id: d.id, category: col, ...d.data() }))
         )
       );
 
       const results = await Promise.all(promises);
-      results.forEach(items => all.push(...items));
+      results.forEach(items => allProducts.push(...items));
 
       // Use randomized products for "All" tab if available, otherwise create and store them
       if (activeCollection === 'All' && randomizedAllProducts.length > 0) {
@@ -82,14 +89,14 @@ export default function HomePage({ onLogout }) {
         setFilteredProducts(randomizedAllProducts);
       } else if (activeCollection === 'All') {
         // Create a randomized version of all products for the "All" tab
-        const shuffled = [...all].sort(() => Math.random() - 0.5);
+        const shuffled = [...allProducts].sort(() => Math.random() - 0.5);
         setRandomizedAllProducts(shuffled);
         setProducts(shuffled);
         setFilteredProducts(shuffled);
       } else {
-        // For specific categories, keep original order
-        setProducts(all);
-        setFilteredProducts(all);
+        // For specific categories, keep original order and only show products from that category
+        setProducts(allProducts.filter(product => product.category === activeCollection));
+        setFilteredProducts(allProducts.filter(product => product.category === activeCollection));
       }
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -107,7 +114,7 @@ export default function HomePage({ onLogout }) {
     setSearchQuery(query);
 
     if (!query.trim()) {
-      // When clearing search, show either randomized or normal products depending on active collection
+      // When clearing search, show either randomized or filtered products depending on active collection
       if (activeCollection === 'All') {
         setFilteredProducts(randomizedAllProducts.length > 0 ? randomizedAllProducts : products);
       } else {
@@ -147,16 +154,35 @@ export default function HomePage({ onLogout }) {
   // Reset filtered products when products change
   useEffect(() => {
     if (!searchQuery) {
-      if (activeCollection === 'All' && randomizedAllProducts.length > 0) {
-        setFilteredProducts(randomizedAllProducts);
-      } else {
-        setFilteredProducts(products);
-      }
+      setFilteredProducts(products);
     } else {
       // Re-apply search filter when products change
       handleSearch(searchQuery);
     }
-  }, [products, searchQuery, handleSearch, activeCollection, randomizedAllProducts]);
+  }, [products, searchQuery, handleSearch]);
+
+  // Navigate to category pages
+  const handleCategoryChange = useCallback((collectionName) => {
+    // Map from Firebase collection name to URL path
+    const getCategoryPath = (collection) => {
+      switch (collection) {
+        case 'All': return '/';
+        case 'Bracelet': return '/bracelets';
+        case 'Brooch': return '/brooches';
+        case 'Earring': return '/earrings';
+        case 'Necklace': return '/necklaces';
+        case 'Pendant': return '/pendants';
+        case 'Pin': return '/pins';
+        case 'Ring': return '/rings';
+        case 'Watch': return '/watches';
+        case 'Art': return '/art';
+        case 'Gem': return '/stones';
+        default: return '/';
+      }
+    };
+
+    navigate(getCategoryPath(collectionName));
+  }, [navigate]);
 
   // Modal handlers
   const openDetail = useCallback(prod => {
@@ -267,13 +293,14 @@ export default function HomePage({ onLogout }) {
       case 'Watch': return 'Watches';
       case 'Pin': return 'Pins';
       case 'Art': return 'Art';
+      case 'Gem': return 'Stones';
       default: return category;
     }
   };
 
   return (
     <div className="home-container">
-      <Navbar onSearch={handleSearch} />
+      <Navbar onSearch={handleSearch} activeCollection={activeCollection} onCategoryChange={handleCategoryChange} />
       <main className="main-content">
         <div className="container">
           {searchQuery && (
@@ -285,6 +312,7 @@ export default function HomePage({ onLogout }) {
                   setSearchQuery('');
                   setFilteredProducts(activeCollection === 'All' ? randomizedAllProducts : products);
                 }}
+                aria-label="Clear search results"
               >
                 Clear
               </button>
@@ -334,12 +362,13 @@ export default function HomePage({ onLogout }) {
               <p className="empty-message">
                 {searchQuery
                   ? `No products found matching "${searchQuery}"`
-                  : "No products in this category."}
+                  : `No products found in ${getCategoryDisplay(activeCollection)}.`}
               </p>
             )}
           </div>
         </div>
       </main>
+
 
       {/* Product Detail Modal */}
       {productDetailOpen && (

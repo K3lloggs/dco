@@ -18,7 +18,7 @@ const CATEGORY_MAPPING = {
   'Rings': 'Ring',
   'Watches': 'Watch',
   'Art': 'Art',
-  'Stones': 'Gem'  // Updated to point to Gem collection
+  'Stones': 'Stones'  // Updated to point to Gem collection
 };
 
 // Reverse mapping (singular to plural) for URL path handling
