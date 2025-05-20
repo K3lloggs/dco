@@ -2,7 +2,7 @@
 
 /* Fade-in animation for product grid */
 .product-grid {
-    min-height: 400px; /* Prevent layout shifts during load */
+    min-height: 200px; /* Prevent layout shifts during load */
     opacity: 0;
     animation: fadeInGrid 0.5s ease forwards;
 }
@@ -101,5 +101,52 @@
     }
     to {
         opacity: 1;
+    }
+}
+
+/* Loading screen styles */
+.loading-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: var(--primary-bg);
+}
+
+/* Responsive animations - reduce motion for smaller screens */
+@media (prefers-reduced-motion) {
+    .product-item {
+        animation: none;
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    .product-grid {
+        animation: none;
+        opacity: 1;
+    }
+    
+    .category-transition {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* Adjust animations for different screen sizes */
+@media (max-width: 768px) {
+    .product-item {
+        animation-delay: calc(var(--animation-order, 0) * 30ms);
+    }
+    
+    /* Simplify transitions for better performance on mobile */
+    .product-item:hover {
+        transform: scale(1.01);
+    }
+}
+
+/* For very small devices, further reduce animations */
+@media (max-width: 480px) {
+    .product-item {
+        animation-delay: calc(var(--animation-order, 0) * 20ms);
     }
 }
